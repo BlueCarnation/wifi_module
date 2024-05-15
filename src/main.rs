@@ -109,7 +109,7 @@ fn convert_to_wifi_data(networks: &[tokio_wifiscanner::Wifi], oui_data: &HashMap
     networks.iter().map(|network| {
         let manufacturer = get_manufacturer(&network.mac, oui_data);
         let network_security = if network.security.is_empty() { "Open" } else { "Secured" };
-        let ssid_sanitized = network.ssid.replace("'", " ").to_string();
+        let ssid_sanitized = sanitize_string(&network.ssid);
         let wifi_data_item = json!({
             "ssid": ssid_sanitized,
             "mac": network.mac,
@@ -120,6 +120,10 @@ fn convert_to_wifi_data(networks: &[tokio_wifiscanner::Wifi], oui_data: &HashMap
         });
         wifi_data_item
     }).collect()
+}
+
+fn sanitize_string(input: &str) -> String {
+    input.replace("'", " ").replace("`", " ").replace("\"", " ")
 }
 
 fn get_manufacturer(mac: &str, oui_data: &HashMap<String, String>) -> Option<String> {
