@@ -107,7 +107,8 @@ pub async fn run_wifi_script() -> Result<bool, Box<dyn std::error::Error>> {
 
 fn convert_to_wifi_data(networks: &[tokio_wifiscanner::Wifi], oui_data: &HashMap<String, String>) -> Vec<serde_json::Value> {
     networks.iter().map(|network| {
-        let manufacturer = get_manufacturer(&network.mac, oui_data);
+        let raw_manufacturer = get_manufacturer(&network.mac, oui_data).unwrap_or_else(|| "Unknown".to_string());
+        let manufacturer = sanitize_string(&raw_manufacturer);
         let network_security = if network.security.is_empty() { "Open" } else { "Secured" };
         let ssid_sanitized = sanitize_string(&network.ssid);
         let wifi_data_item = json!({
@@ -167,10 +168,12 @@ fn generate_results(
             .collect::<Vec<String>>().join(",");
 
         let first_network = networks.iter().find(|n| n.mac == *mac).unwrap();
+        let manufacturer = get_manufacturer(&first_network.mac, oui_data).unwrap_or_else(|| "Unknown".to_string());
+        let sanitized_manufacturer = sanitize_string(&manufacturer);
         json!({
-            "ssid": first_network.ssid,
+            "ssid": sanitize_string(&first_network.ssid),
             "mac": first_network.mac,
-            "manufacturer": get_manufacturer(&first_network.mac, oui_data),
+            "manufacturer": sanitized_manufacturer,
             "network_security": first_network.security,
             "channel": first_network.channel,
             "wifi_durations": durations
