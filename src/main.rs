@@ -161,8 +161,9 @@ fn generate_results(
     device_intervals: &HashMap<String, Vec<(Instant, Instant)>>,
     networks: &[tokio_wifiscanner::Wifi],
     oui_data: &HashMap<String, String>,
-) -> Vec<Value> {
-    device_intervals.iter().map(|(mac, intervals)| {
+) -> serde_json::Map<String, serde_json::Value> {
+    let mut results = serde_json::Map::new();
+    for (mac, intervals) in device_intervals {
         let durations = intervals.iter()
             .map(|(start, end)| format!("{}-{}", start.elapsed().as_secs(), end.elapsed().as_secs()))
             .collect::<Vec<String>>().join(",");
@@ -170,13 +171,18 @@ fn generate_results(
         let first_network = networks.iter().find(|n| n.mac == *mac).unwrap();
         let manufacturer = get_manufacturer(&first_network.mac, oui_data).unwrap_or_else(|| "Unknown".to_string());
         let sanitized_manufacturer = sanitize_string(&manufacturer);
-        json!({
+
+        let wifi_data_item = json!({
             "ssid": sanitize_string(&first_network.ssid),
             "mac": first_network.mac,
             "manufacturer": sanitized_manufacturer,
             "network_security": first_network.security,
             "channel": first_network.channel,
             "wifi_durations": durations
-        })
-    }).collect()
+        });
+
+        results.insert(mac.clone(), wifi_data_item);
+    }
+    results
 }
+
