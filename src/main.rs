@@ -165,7 +165,16 @@ fn generate_results(
     let mut results = serde_json::Map::new();
     for (mac, intervals) in device_intervals {
         let durations = intervals.iter()
-            .map(|(start, end)| format!("{}-{}", start.elapsed().as_secs(), end.elapsed().as_secs()))
+            .map(|(start, end)| {
+                // Ensure intervals are formatted from lower to higher time
+                let start_secs = start.elapsed().as_secs();
+                let end_secs = end.elapsed().as_secs();
+                if start_secs <= end_secs {
+                    format!("{}-{}", start_secs, end_secs)
+                } else {
+                    format!("{}-{}", end_secs, start_secs)
+                }
+            })
             .collect::<Vec<String>>().join(",");
 
         let first_network = networks.iter().find(|n| n.mac == *mac).unwrap();
