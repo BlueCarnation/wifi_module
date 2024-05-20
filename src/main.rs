@@ -96,12 +96,34 @@ pub async fn run_wifi_script() -> Result<bool, Box<dyn std::error::Error>> {
             tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
         }
 
-        let results = generate_results(&device_intervals, &networks, &oui_data);
-        let json_data = serde_json::to_string_pretty(&results)?;
-        println!("{}", json_data);
-        write_json_to_file(&json_data, "wifi_scheduleddata.json")?;
+    // Generate ID-ed results based on device_intervals
+    let mut formatted_wifi_data = serde_json::Map::new();
+    let mut id = 1;
+    for (mac, intervals) in &device_intervals {
+        let durations = intervals.iter()
+            .map(|(start, end)| format!("{}-{}", start.elapsed().as_secs(), end.elapsed().as_secs()))
+            .collect::<Vec<String>>().join(",");
+        let network = networks.iter().find(|n| n.mac == *mac).unwrap(); // Safe unwrap because mac comes from scanned networks
+        let manufacturer = get_manufacturer(&network.mac, &oui_data).unwrap_or_else(|| "Unknown".to_string());
+        
+        let wifi_data_item = json!({
+            "ssid": sanitize_string(&network.ssid),
+            "mac": network.mac,
+            "manufacturer": manufacturer,
+            "network_security": if network.security.is_empty() { "Open" } else { "Secured" },
+            "channel": network.channel,
+            "wifi_durations": durations
+        });
 
-        Ok(true)
+        formatted_wifi_data.insert(id.to_string(), wifi_data_item);
+        id += 1;
+    }
+
+    let json_data = serde_json::to_string_pretty(&formatted_wifi_data)?;
+    println!("{}", json_data);
+    write_json_to_file(&json_data, "wifi_scheduleddata.json")?;
+
+    Ok(true)
     }
 }
 
